@@ -1,8 +1,10 @@
-package fstring
+package fstring_test
 
 import (
 	"strings"
 	"testing"
+
+	"github.com/WqyJh/go-fstring"
 )
 
 func TestFormat(t *testing.T) {
@@ -31,7 +33,7 @@ func TestFormat(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := Format(tt.args.format, tt.args.values)
+			got, err := fstring.Format(tt.args.format, tt.args.values)
 			if (err != nil) != (tt.wantErr != "") {
 				t.Errorf("Format() error = %v, wantErr %v", err, tt.wantErr)
 				return

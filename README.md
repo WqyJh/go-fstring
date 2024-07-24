@@ -7,7 +7,7 @@ The fstring package in Go provides a simple yet powerful way to interpolate stri
 Import the go-fstring package into your Go file:
 
 ```go
-import "github.com/WqyJh/go-fstring/fstring"
+import "github.com/WqyJh/go-fstring"
 ```
 
 You can then use the Format function to interpolate strings. The Format function takes a template string and a map of values to interpolate into the template:
