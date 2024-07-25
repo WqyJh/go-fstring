@@ -20,6 +20,7 @@ func TestFormat(t *testing.T) {
 		want    string
 		wantErr string
 	}{
+		{"1", args{"", map[string]any{}}, "arg1", ""},
 		{"1", args{"{", map[string]any{}}, "", "single '{' is not allowed"},
 		{"2", args{"{{", map[string]any{}}, "{", ""},
 		{"3", args{"}", map[string]any{}}, "", "single '}' is not allowed"},
