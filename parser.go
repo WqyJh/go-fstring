@@ -7,94 +7,63 @@ import (
 )
 
 type parser struct {
-	data   []rune
-	result []rune
-	idx    int
-	values map[string]any
+	data         []rune
+	result       []rune
+	idx          int
+	values       map[string]any
+	keyValidator KeyValidatorFunc
 }
 
-func newParser(s string, values map[string]any) *parser {
+func newParser(s string, values map[string]any, keyValidator KeyValidatorFunc) *parser {
 	if len(values) == 0 {
 		values = map[string]any{}
 	}
 	return &parser{
-		data:   []rune(s),
-		result: nil,
-		idx:    0,
-		values: values,
+		data:         []rune(s),
+		result:       nil,
+		idx:          0,
+		values:       values,
+		keyValidator: keyValidator,
 	}
 }
 
 func (r *parser) parse() error {
-	for r.hasMore() {
-		existLeftCurlyBracket, tmp, err := r.scanToLeftCurlyBracket()
-		if err != nil {
-			return err
-		}
-		r.result = append(r.result, tmp...)
-		if !existLeftCurlyBracket {
-			continue
-		}
+	lastLeftCurlyBracketIdx := -1
+	for ; r.hasMore(); r.idx++ {
+		s := r.get()
 
-		tmp = r.scanToRightCurlyBracket()
-		valName := strings.TrimSpace(string(tmp))
-		if valName == "" {
-			return ErrEmptyExpression
+		switch s {
+		case '{':
+			if lastLeftCurlyBracketIdx >= 0 {
+				r.result = append(r.result, r.data[lastLeftCurlyBracketIdx:r.idx]...)
+			}
+			lastLeftCurlyBracketIdx = r.idx
+		case '}':
+			if lastLeftCurlyBracketIdx >= 0 {
+				if lastLeftCurlyBracketIdx < r.idx {
+					key := strings.TrimSpace(string(r.data[lastLeftCurlyBracketIdx+1 : r.idx]))
+					if r.keyValidator == nil || r.keyValidator(string(key)) {
+						val, ok := r.values[string(key)]
+						if !ok {
+							return fmt.Errorf("%w: %s", ErrArgsNotDefined, string(key))
+						}
+						r.result = append(r.result, []rune(toString(val))...)
+						lastLeftCurlyBracketIdx = -1
+						continue
+					}
+				}
+				r.result = append(r.result, r.data[lastLeftCurlyBracketIdx:r.idx+1]...)
+				lastLeftCurlyBracketIdx = -1
+				continue
+			}
+			r.result = append(r.result, s)
+		default:
+			if lastLeftCurlyBracketIdx == -1 {
+				r.result = append(r.result, s)
+			}
 		}
-		val, ok := r.values[valName]
-		if !ok {
-			return fmt.Errorf("%w: %s", ErrArgsNotDefined, valName)
-		}
-		r.result = append(r.result, []rune(toString(val))...)
 	}
 	return nil
-}
-
-func (r *parser) scanToLeftCurlyBracket() (bool, []rune, error) {
-	res := []rune{}
-	for r.hasMore() {
-		s := r.get()
-		r.idx++
-		switch s {
-		case '}':
-			if r.hasMore() && r.get() == '}' {
-				res = append(res, '}') // nolint:ineffassign,staticcheck
-				r.idx++
-				continue
-			}
-			return false, nil, ErrRightBracketNotClosed
-		case '{':
-			if !r.hasMore() {
-				return false, nil, ErrLeftBracketNotClosed
-			}
-			if r.get() == '{' {
-				// {{ -> {
-				r.idx++
-				res = append(res, '{')
-				continue
-			}
-			return true, res, nil
-		default:
-			res = append(res, s)
-		}
-	}
-	return false, res, nil
-}
-
-func (r *parser) scanToRightCurlyBracket() []rune {
-	var res []rune
-	for r.hasMore() {
-		s := r.get()
-		if s != '}' {
-			// xxx
-			res = append(res, s)
-			r.idx++
-			continue
-		}
-		r.idx++
-		break
-	}
-	return res
 }
 
 func (r *parser) hasMore() bool {
